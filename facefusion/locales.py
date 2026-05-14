@@ -15,6 +15,7 @@ LOCALES : Locales =\
 		'analysing': 'analysing',
 		'extracting': 'extracting',
 		'streaming': 'streaming',
+		'webcam_stream_not_resolved': 'webcam stream could not be resolved',
 		'processing': 'processing',
 		'merging': 'merging',
 		'downloading': 'downloading',
@@ -267,6 +268,7 @@ LOCALES : Locales =\
 			'webcam_fps_slider': 'WEBCAM FPS',
 			'webcam_image': 'WEBCAM',
 			'webcam_device_id_dropdown': 'WEBCAM DEVICE ID',
+			'webcam_stream_url_textbox': 'WEBCAM STREAM URL',
 			'webcam_mode_radio': 'WEBCAM MODE',
 			'webcam_resolution_dropdown': 'WEBCAM RESOLUTION'
 		}

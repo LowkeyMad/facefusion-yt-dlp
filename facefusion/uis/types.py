@@ -88,6 +88,7 @@ ComponentName = Literal\
 	'target_video',
 	'ui_workflow_dropdown',
 	'webcam_device_id_dropdown',
+	'webcam_stream_url_textbox',
 	'webcam_fps_slider',
 	'webcam_mode_radio',
 	'webcam_resolution_dropdown'

@@ -94,18 +94,17 @@ def start(webcam_device_id : int, webcam_stream_url : str, youtube_cookies_file 
 
 	camera_capture = None
 	webcam_stream_url = webcam_stream_url.strip() if webcam_stream_url else None
+	webcam_width, webcam_height = unpack_resolution(webcam_resolution)
 
 	if webcam_stream_url:
 		youtube_cookies_path = prepare_youtube_cookies_path(youtube_cookies_file)
 		stream_url = resolve_stream_url(webcam_stream_url, youtube_cookies_path)
 		if stream_url:
-			camera_capture = get_remote_camera_capture(stream_url)
+			camera_capture = get_remote_camera_capture(stream_url, webcam_width, webcam_height)
 		else:
 			logger.error(translator.get('webcam_stream_not_resolved'), __name__)
 	else:
 		camera_capture = get_local_camera_capture(webcam_device_id)
-
-	webcam_width, webcam_height = unpack_resolution(webcam_resolution)
 
 	if camera_capture and camera_capture.isOpened():
 		stream = None

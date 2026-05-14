@@ -1,9 +1,8 @@
-import os
 from typing import List
 
 import cv2
 
-from facefusion.streams.capture import LatestFrameCapture
+from facefusion.streams.ffmpeg_capture import FFmpegCapture
 from facefusion.types import CameraPoolSet
 
 CAMERA_POOL_SET : CameraPoolSet =\
@@ -24,22 +23,19 @@ def get_local_camera_capture(camera_id : int) -> cv2.VideoCapture:
 	return CAMERA_POOL_SET.get('capture').get(camera_key)
 
 
-def get_remote_camera_capture(camera_url : str) -> LatestFrameCapture:
-	if camera_url not in CAMERA_POOL_SET.get('capture'):
-		previous_capture_options = os.environ.get('OPENCV_FFMPEG_CAPTURE_OPTIONS')
-		os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'fflags;nobuffer|flags;low_delay|probesize;32|analyzeduration;0'
-		camera_capture = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
+def get_remote_camera_capture(camera_url : str, width : int, height : int) -> FFmpegCapture:
+	camera_key = camera_url + '@' + str(width) + 'x' + str(height)
 
-		if previous_capture_options is None:
-			os.environ.pop('OPENCV_FFMPEG_CAPTURE_OPTIONS', None)
-		else:
-			os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = previous_capture_options
+	if camera_key not in CAMERA_POOL_SET.get('capture'):
+		try:
+			camera_capture = FFmpegCapture(camera_url, width, height)
+		except OSError:
+			return None #type:ignore[return-value]
 
 		if camera_capture.isOpened():
-			camera_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-			CAMERA_POOL_SET['capture'][camera_url] = LatestFrameCapture(camera_capture) #type:ignore[assignment]
+			CAMERA_POOL_SET['capture'][camera_key] = camera_capture #type:ignore[assignment]
 
-	return CAMERA_POOL_SET.get('capture').get(camera_url) #type:ignore[return-value]
+	return CAMERA_POOL_SET.get('capture').get(camera_key) #type:ignore[return-value]
 
 
 def clear_camera_pool() -> None:

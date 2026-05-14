@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from facefusion.streams.ytdlp import is_youtube_url, resolve_stream_url, resolve_youtube_stream_url
+from facefusion.streams.ytdlp import YOUTUBE_STREAM_FORMAT, is_youtube_url, resolve_stream_url, resolve_youtube_stream_url
 
 
 def test_is_youtube_url() -> None:
@@ -23,7 +23,7 @@ def test_resolve_youtube_stream_url_without_cookies() -> None:
 		run.return_value.stdout = '\nhttps://stream.example.com/live.m3u8\n'
 
 		assert resolve_youtube_stream_url('https://www.youtube.com/watch?v=test') == 'https://stream.example.com/live.m3u8'
-		run.assert_called_once_with([ 'yt-dlp', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
+		run.assert_called_once_with([ 'yt-dlp', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '--format', YOUTUBE_STREAM_FORMAT, '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
 
 
 def test_resolve_youtube_stream_url_with_cookies() -> None:
@@ -32,7 +32,7 @@ def test_resolve_youtube_stream_url_with_cookies() -> None:
 		run.return_value.stdout = '\nhttps://stream.example.com/live.m3u8\n'
 
 		assert resolve_youtube_stream_url('https://www.youtube.com/watch?v=test') == 'https://stream.example.com/live.m3u8'
-		run.assert_called_once_with([ 'yt-dlp', '--cookies', 'cookies.txt', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
+		run.assert_called_once_with([ 'yt-dlp', '--cookies', 'cookies.txt', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '--format', YOUTUBE_STREAM_FORMAT, '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
 
 
 def test_resolve_youtube_stream_url_with_custom_cookies() -> None:
@@ -41,7 +41,7 @@ def test_resolve_youtube_stream_url_with_custom_cookies() -> None:
 		run.return_value.stdout = '\nhttps://stream.example.com/live.m3u8\n'
 
 		assert resolve_youtube_stream_url('https://www.youtube.com/watch?v=test', '/tmp/facefusion/youtube/cookies.txt') == 'https://stream.example.com/live.m3u8'
-		run.assert_called_once_with([ 'yt-dlp', '--cookies', '/tmp/facefusion/youtube/cookies.txt', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
+		run.assert_called_once_with([ 'yt-dlp', '--cookies', '/tmp/facefusion/youtube/cookies.txt', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '--format', YOUTUBE_STREAM_FORMAT, '-g', 'https://www.youtube.com/watch?v=test' ], capture_output = True, text = True)
 
 
 def test_resolve_youtube_stream_url_failure() -> None:

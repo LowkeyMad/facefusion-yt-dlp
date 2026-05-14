@@ -3,6 +3,8 @@ import subprocess
 from typing import Optional
 from urllib.parse import urlparse
 
+YOUTUBE_STREAM_FORMAT = 'best[vcodec^=avc1]/best[ext=mp4]/best'
+
 
 def is_youtube_url(url : str) -> bool:
 	if url:
@@ -24,7 +26,7 @@ def resolve_stream_url(url : str, cookies_path : Optional[str] = None) -> Option
 
 
 def resolve_youtube_stream_url(url : str, cookies_path : Optional[str] = None) -> Optional[str]:
-	commands = [ 'yt-dlp', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '-g', url ]
+	commands = [ 'yt-dlp', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '--format', YOUTUBE_STREAM_FORMAT, '-g', url ]
 
 	if cookies_path and os.path.isfile(cookies_path):
 		commands[1:1] = [ '--cookies', cookies_path ]

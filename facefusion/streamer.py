@@ -2,6 +2,7 @@ import os
 import subprocess
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 from typing import Deque, Iterator
 
 import cv2
@@ -46,6 +47,24 @@ def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -
 				while capture_deque:
 					progress.update()
 					yield capture_deque.popleft()
+
+
+def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -> Iterator[VisionFrame]:
+	with tqdm(desc = translator.get('streaming'), unit = 'frame', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
+		while camera_capture and camera_capture.isOpened():
+			has_capture_vision_frame, capture_vision_frame = camera_capture.read()
+
+			if not has_capture_vision_frame:
+				sleep(0.01)
+				continue
+
+			if analyse_stream(capture_vision_frame, camera_fps):
+				camera_capture.release()
+				break
+
+			if numpy.any(capture_vision_frame):
+				progress.update()
+				yield process_stream_frame(capture_vision_frame)
 
 
 def process_stream_frame(target_vision_frame : VisionFrame) -> VisionFrame:

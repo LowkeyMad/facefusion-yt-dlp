@@ -6,7 +6,7 @@ import gradio
 from facefusion import logger, state_manager, translator
 from facefusion.camera_manager import clear_camera_pool, get_local_camera_capture, get_remote_camera_capture
 from facefusion.filesystem import has_image
-from facefusion.streamer import multi_process_capture, open_stream
+from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture
 from facefusion.streams.ytdlp import resolve_stream_url
 from facefusion.types import Fps, VisionFrame, WebcamMode
 from facefusion.uis.core import get_ui_component
@@ -112,7 +112,9 @@ def start(webcam_device_id : int, webcam_stream_url : str, webcam_mode : WebcamM
 		camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height)
 		camera_capture.set(cv2.CAP_PROP_FPS, webcam_fps)
 
-		for capture_vision_frame in multi_process_capture(camera_capture, webcam_fps):
+		capture_vision_frames = process_latest_capture(camera_capture, webcam_fps) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
+
+		for capture_vision_frame in capture_vision_frames:
 			capture_vision_frame = cv2.cvtColor(capture_vision_frame, cv2.COLOR_BGR2RGB)
 			capture_vision_frame = fit_cover_frame(capture_vision_frame, (webcam_width, webcam_height))
 

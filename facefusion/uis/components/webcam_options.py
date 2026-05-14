@@ -12,6 +12,7 @@ WEBCAM_DEVICE_ID_DROPDOWN : Optional[gradio.Dropdown] = None
 WEBCAM_STREAM_URL_TEXTBOX : Optional[gradio.Textbox] = None
 WEBCAM_YOUTUBE_COOKIES_FILE : Optional[gradio.File] = None
 WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX : Optional[gradio.Checkbox] = None
+WEBCAM_REALTIME_MODE_CHECKBOX : Optional[gradio.Checkbox] = None
 WEBCAM_MODE_RADIO : Optional[gradio.Radio] = None
 WEBCAM_RESOLUTION_DROPDOWN : Optional[gradio.Dropdown] = None
 WEBCAM_FPS_SLIDER : Optional[gradio.Slider] = None
@@ -22,6 +23,7 @@ def render() -> None:
 	global WEBCAM_STREAM_URL_TEXTBOX
 	global WEBCAM_YOUTUBE_COOKIES_FILE
 	global WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX
+	global WEBCAM_REALTIME_MODE_CHECKBOX
 	global WEBCAM_MODE_RADIO
 	global WEBCAM_RESOLUTION_DROPDOWN
 	global WEBCAM_FPS_SLIDER
@@ -42,6 +44,10 @@ def render() -> None:
 	WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX = gradio.Checkbox(
 		label = translator.get('uis.webcam_preview_stream_only_checkbox'),
 		value = False
+	)
+	WEBCAM_REALTIME_MODE_CHECKBOX = gradio.Checkbox(
+		label = translator.get('uis.webcam_realtime_mode_checkbox'),
+		value = True
 	)
 	WEBCAM_MODE_RADIO = gradio.Radio(
 		label = translator.get('uis.webcam_mode_radio'),
@@ -64,6 +70,7 @@ def render() -> None:
 	register_ui_component('webcam_stream_url_textbox', WEBCAM_STREAM_URL_TEXTBOX)
 	register_ui_component('webcam_youtube_cookies_file', WEBCAM_YOUTUBE_COOKIES_FILE)
 	register_ui_component('webcam_preview_stream_only_checkbox', WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX)
+	register_ui_component('webcam_realtime_mode_checkbox', WEBCAM_REALTIME_MODE_CHECKBOX)
 	register_ui_component('webcam_mode_radio', WEBCAM_MODE_RADIO)
 	register_ui_component('webcam_resolution_dropdown', WEBCAM_RESOLUTION_DROPDOWN)
 	register_ui_component('webcam_fps_slider', WEBCAM_FPS_SLIDER)

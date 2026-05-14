@@ -91,6 +91,7 @@ ComponentName = Literal\
 	'webcam_stream_url_textbox',
 	'webcam_youtube_cookies_file',
 	'webcam_preview_stream_only_checkbox',
+	'webcam_realtime_mode_checkbox',
 	'webcam_fps_slider',
 	'webcam_mode_radio',
 	'webcam_resolution_dropdown'

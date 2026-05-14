@@ -8,7 +8,7 @@ import gradio
 from facefusion import logger, state_manager, translator
 from facefusion.camera_manager import clear_camera_pool, get_local_camera_capture, get_remote_camera_capture
 from facefusion.filesystem import create_directory, has_image, is_file
-from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture, process_raw_latest_capture
+from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture, process_raw_latest_capture, restrict_realtime_resolution
 from facefusion.streams.ytdlp import resolve_stream_url
 from facefusion.types import Fps, VisionFrame, WebcamMode
 from facefusion.uis.core import get_ui_component
@@ -56,13 +56,14 @@ def listen() -> None:
 	webcam_stream_url_textbox = get_ui_component('webcam_stream_url_textbox')
 	webcam_youtube_cookies_file = get_ui_component('webcam_youtube_cookies_file')
 	webcam_preview_stream_only_checkbox = get_ui_component('webcam_preview_stream_only_checkbox')
+	webcam_realtime_mode_checkbox = get_ui_component('webcam_realtime_mode_checkbox')
 	webcam_mode_radio = get_ui_component('webcam_mode_radio')
 	webcam_resolution_dropdown = get_ui_component('webcam_resolution_dropdown')
 	webcam_fps_slider = get_ui_component('webcam_fps_slider')
 
-	if webcam_device_id_dropdown and webcam_stream_url_textbox and webcam_youtube_cookies_file and webcam_preview_stream_only_checkbox and webcam_mode_radio and webcam_resolution_dropdown and webcam_fps_slider:
+	if webcam_device_id_dropdown and webcam_stream_url_textbox and webcam_youtube_cookies_file and webcam_preview_stream_only_checkbox and webcam_realtime_mode_checkbox and webcam_mode_radio and webcam_resolution_dropdown and webcam_fps_slider:
 		WEBCAM_START_BUTTON.click(pre_start, outputs = [ SOURCE_FILE, WEBCAM_IMAGE, WEBCAM_START_BUTTON, WEBCAM_STOP_BUTTON ])
-		start_event = WEBCAM_START_BUTTON.click(start, inputs = [ webcam_device_id_dropdown, webcam_stream_url_textbox, webcam_youtube_cookies_file, webcam_preview_stream_only_checkbox, webcam_mode_radio, webcam_resolution_dropdown, webcam_fps_slider ], outputs = WEBCAM_IMAGE)
+		start_event = WEBCAM_START_BUTTON.click(start, inputs = [ webcam_device_id_dropdown, webcam_stream_url_textbox, webcam_youtube_cookies_file, webcam_preview_stream_only_checkbox, webcam_realtime_mode_checkbox, webcam_mode_radio, webcam_resolution_dropdown, webcam_fps_slider ], outputs = WEBCAM_IMAGE)
 		start_event.then(pre_stop)
 		WEBCAM_STOP_BUTTON.click(stop, cancels = start_event, outputs = WEBCAM_IMAGE)
 		WEBCAM_STOP_BUTTON.click(pre_stop, outputs = [ SOURCE_FILE, WEBCAM_IMAGE, WEBCAM_START_BUTTON, WEBCAM_STOP_BUTTON ])
@@ -88,19 +89,23 @@ def pre_stop() -> Tuple[gradio.File, gradio.Image, gradio.Button, gradio.Button]
 	return gradio.File(visible = True), gradio.Image(visible = False), gradio.Button(visible = True), gradio.Button(visible = False)
 
 
-def start(webcam_device_id : int, webcam_stream_url : str, youtube_cookies_file : File, preview_stream_only : bool, webcam_mode : WebcamMode, webcam_resolution : str, webcam_fps : Fps) -> Iterator[VisionFrame]:
+def start(webcam_device_id : int, webcam_stream_url : str, youtube_cookies_file : File, preview_stream_only : bool, realtime_mode : bool, webcam_mode : WebcamMode, webcam_resolution : str, webcam_fps : Fps) -> Iterator[VisionFrame]:
 	state_manager.init_item('face_selector_mode', 'one')
 	state_manager.sync_state()
 
 	camera_capture = None
 	webcam_stream_url = webcam_stream_url.strip() if webcam_stream_url else None
 	webcam_width, webcam_height = unpack_resolution(webcam_resolution)
+	capture_width, capture_height = webcam_width, webcam_height
+
+	if webcam_stream_url and realtime_mode and not preview_stream_only:
+		capture_width, capture_height = restrict_realtime_resolution(webcam_width, webcam_height)
 
 	if webcam_stream_url:
 		youtube_cookies_path = prepare_youtube_cookies_path(youtube_cookies_file)
 		stream_url = resolve_stream_url(webcam_stream_url, youtube_cookies_path)
 		if stream_url:
-			camera_capture = get_remote_camera_capture(stream_url, webcam_width, webcam_height)
+			camera_capture = get_remote_camera_capture(stream_url, capture_width, capture_height)
 		else:
 			logger.error(translator.get('webcam_stream_not_resolved'), __name__)
 	else:
@@ -116,10 +121,10 @@ def start(webcam_device_id : int, webcam_stream_url : str, youtube_cookies_file 
 		camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height)
 		camera_capture.set(cv2.CAP_PROP_FPS, webcam_fps)
 
-		if preview_stream_only:
+		if preview_stream_only or not state_manager.get_item('processors'):
 			capture_vision_frames = process_raw_latest_capture(camera_capture)
 		else:
-			capture_vision_frames = process_latest_capture(camera_capture, webcam_fps) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
+			capture_vision_frames = process_latest_capture(camera_capture, webcam_fps, realtime_mode) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
 
 		for capture_vision_frame in capture_vision_frames:
 			capture_vision_frame = cv2.cvtColor(capture_vision_frame, cv2.COLOR_BGR2RGB)

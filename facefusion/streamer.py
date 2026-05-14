@@ -4,7 +4,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from types import ModuleType
-from typing import Deque, Dict, Iterator, List, Optional
+from typing import Deque, Dict, Iterator, List, Optional, Tuple
 
 import cv2
 import numpy
@@ -64,7 +64,7 @@ def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -
 					yield capture_deque.popleft()
 
 
-def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -> Iterator[VisionFrame]:
+def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, realtime_mode : bool = True) -> Iterator[VisionFrame]:
 	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
@@ -91,20 +91,20 @@ def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) 
 				sleep(0.01)
 				continue
 
-			if analyse_stream(capture_vision_frame, camera_fps):
+			process_vision_frame = resize_realtime_frame(capture_vision_frame) if realtime_mode else capture_vision_frame
+
+			if analyse_stream(process_vision_frame, camera_fps):
 				camera_capture.release()
 				break
 
-			if numpy.any(capture_vision_frame):
-				capture_vision_frame = resize_realtime_frame(capture_vision_frame)
-
-				if skip_no_face_frames and not get_many_faces([ capture_vision_frame ]):
+			if numpy.any(process_vision_frame):
+				if skip_no_face_frames and not get_many_faces([ process_vision_frame ]):
 					progress.update()
-					yield capture_vision_frame
+					yield process_vision_frame
 					continue
 
 				progress.update()
-				yield process_stream_frame(capture_vision_frame, source_vision_frames, source_audio_frame, source_voice_frame, processor_modules, source_faces)
+				yield process_stream_frame(process_vision_frame, source_vision_frames, source_audio_frame, source_voice_frame, processor_modules, source_faces)
 
 
 def process_raw_latest_capture(camera_capture : cv2.VideoCapture) -> Iterator[VisionFrame]:
@@ -123,12 +123,20 @@ def process_raw_latest_capture(camera_capture : cv2.VideoCapture) -> Iterator[Vi
 
 def resize_realtime_frame(vision_frame : VisionFrame) -> VisionFrame:
 	height, width = vision_frame.shape[:2]
+	realtime_width, realtime_height = restrict_realtime_resolution(width, height)
 
-	if width > REALTIME_PROCESS_WIDTH:
-		realtime_height = int(height * REALTIME_PROCESS_WIDTH / width)
-		return cv2.resize(vision_frame, (REALTIME_PROCESS_WIDTH, realtime_height), interpolation = cv2.INTER_AREA)
+	if width != realtime_width or height != realtime_height:
+		return cv2.resize(vision_frame, (realtime_width, realtime_height), interpolation = cv2.INTER_AREA)
 
 	return vision_frame
+
+
+def restrict_realtime_resolution(width : int, height : int) -> Tuple[int, int]:
+	if width > REALTIME_PROCESS_WIDTH:
+		realtime_height = int(height * REALTIME_PROCESS_WIDTH / width)
+		return REALTIME_PROCESS_WIDTH, realtime_height
+
+	return width, height
 
 
 def process_stream_frame(target_vision_frame : VisionFrame, source_vision_frames : Optional[List[VisionFrame]] = None, source_audio_frame : Optional[AudioFrame] = None, source_voice_frame : Optional[AudioFrame] = None, processor_modules : Optional[List[ModuleType]] = None, source_faces : Optional[Dict[str, Face]] = None) -> VisionFrame:

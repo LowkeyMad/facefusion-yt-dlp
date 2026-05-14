@@ -271,6 +271,7 @@ LOCALES : Locales =\
 			'webcam_stream_url_textbox': 'WEBCAM STREAM URL',
 			'webcam_youtube_cookies_file': 'UPLOAD YOUTUBE COOKIES',
 			'webcam_preview_stream_only_checkbox': 'PREVIEW STREAM ONLY',
+			'webcam_realtime_mode_checkbox': 'REALTIME MODE',
 			'webcam_mode_radio': 'WEBCAM MODE',
 			'webcam_resolution_dropdown': 'WEBCAM RESOLUTION'
 		}

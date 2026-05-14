@@ -11,22 +11,24 @@ def is_youtube_url(url : str) -> bool:
 	return False
 
 
-def resolve_stream_url(url : str) -> Optional[str]:
+def resolve_stream_url(url : str, cookies_path : Optional[str] = None) -> Optional[str]:
 	if not url:
 		return None
 
 	url = url.strip()
 
 	if is_youtube_url(url):
-		return resolve_youtube_stream_url(url)
+		return resolve_youtube_stream_url(url, cookies_path)
 
 	return url
 
 
-def resolve_youtube_stream_url(url : str) -> Optional[str]:
-	commands = [ 'yt-dlp', '--js-runtimes', 'node', '-g', url ]
+def resolve_youtube_stream_url(url : str, cookies_path : Optional[str] = None) -> Optional[str]:
+	commands = [ 'yt-dlp', '--js-runtimes', 'node', '--remote-components', 'ejs:github', '-g', url ]
 
-	if os.path.isfile('cookies.txt'):
+	if cookies_path and os.path.isfile(cookies_path):
+		commands[1:1] = [ '--cookies', cookies_path ]
+	elif os.path.isfile('cookies.txt'):
 		commands[1:1] = [ '--cookies', 'cookies.txt' ]
 
 	try:

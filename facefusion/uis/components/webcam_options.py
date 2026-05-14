@@ -10,6 +10,7 @@ from facefusion.uis.core import register_ui_component
 
 WEBCAM_DEVICE_ID_DROPDOWN : Optional[gradio.Dropdown] = None
 WEBCAM_STREAM_URL_TEXTBOX : Optional[gradio.Textbox] = None
+WEBCAM_YOUTUBE_COOKIES_FILE : Optional[gradio.File] = None
 WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX : Optional[gradio.Checkbox] = None
 WEBCAM_MODE_RADIO : Optional[gradio.Radio] = None
 WEBCAM_RESOLUTION_DROPDOWN : Optional[gradio.Dropdown] = None
@@ -19,6 +20,7 @@ WEBCAM_FPS_SLIDER : Optional[gradio.Slider] = None
 def render() -> None:
 	global WEBCAM_DEVICE_ID_DROPDOWN
 	global WEBCAM_STREAM_URL_TEXTBOX
+	global WEBCAM_YOUTUBE_COOKIES_FILE
 	global WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX
 	global WEBCAM_MODE_RADIO
 	global WEBCAM_RESOLUTION_DROPDOWN
@@ -32,6 +34,10 @@ def render() -> None:
 	)
 	WEBCAM_STREAM_URL_TEXTBOX = gradio.Textbox(
 		label = translator.get('uis.webcam_stream_url_textbox')
+	)
+	WEBCAM_YOUTUBE_COOKIES_FILE = gradio.File(
+		label = translator.get('uis.webcam_youtube_cookies_file'),
+		file_types = [ '.txt' ]
 	)
 	WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX = gradio.Checkbox(
 		label = translator.get('uis.webcam_preview_stream_only_checkbox'),
@@ -56,6 +62,7 @@ def render() -> None:
 	)
 	register_ui_component('webcam_device_id_dropdown', WEBCAM_DEVICE_ID_DROPDOWN)
 	register_ui_component('webcam_stream_url_textbox', WEBCAM_STREAM_URL_TEXTBOX)
+	register_ui_component('webcam_youtube_cookies_file', WEBCAM_YOUTUBE_COOKIES_FILE)
 	register_ui_component('webcam_preview_stream_only_checkbox', WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX)
 	register_ui_component('webcam_mode_radio', WEBCAM_MODE_RADIO)
 	register_ui_component('webcam_resolution_dropdown', WEBCAM_RESOLUTION_DROPDOWN)

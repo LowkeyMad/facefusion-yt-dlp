@@ -3,7 +3,8 @@ import subprocess
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
-from typing import Deque, Iterator
+from types import ModuleType
+from typing import Deque, Dict, Iterator, List, Optional
 
 import cv2
 import numpy
@@ -12,11 +13,25 @@ from tqdm import tqdm
 from facefusion import ffmpeg_builder, logger, state_manager, translator
 from facefusion.audio import create_empty_audio_frame
 from facefusion.content_analyser import analyse_stream
+from facefusion.face_analyser import get_many_faces
 from facefusion.ffmpeg import open_ffmpeg
 from facefusion.filesystem import is_directory
 from facefusion.processors.core import get_processors_modules
-from facefusion.types import Fps, StreamMode, VisionFrame
+from facefusion.types import AudioFrame, Face, Fps, StreamMode, VisionFrame
 from facefusion.vision import extract_vision_mask, read_static_images
+
+REALTIME_PROCESS_WIDTH = 640
+FACE_DEPENDENT_PROCESSORS =\
+{
+	'age_modifier',
+	'deep_swapper',
+	'expression_restorer',
+	'face_debugger',
+	'face_editor',
+	'face_enhancer',
+	'face_swapper',
+	'lip_syncer'
+}
 
 
 def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -> Iterator[VisionFrame]:
@@ -50,6 +65,24 @@ def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -
 
 
 def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -> Iterator[VisionFrame]:
+	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
+	source_audio_frame = create_empty_audio_frame()
+	source_voice_frame = create_empty_audio_frame()
+	processor_modules = []
+	source_faces : Dict[str, Face] = {}
+
+	for processor_module in get_processors_modules(state_manager.get_item('processors')):
+		logger.disable()
+		if processor_module.pre_process('stream'):
+			processor_modules.append(processor_module)
+			if hasattr(processor_module, 'extract_source_face'):
+				source_face = processor_module.extract_source_face(source_vision_frames)
+				if source_face:
+					source_faces[processor_module.__name__] = source_face
+		logger.enable()
+
+	skip_no_face_frames = bool(processor_modules) and all(processor_module.__name__.rsplit('.', 1)[-1] in FACE_DEPENDENT_PROCESSORS for processor_module in processor_modules)
+
 	with tqdm(desc = translator.get('streaming'), unit = 'frame', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
 		while camera_capture and camera_capture.isOpened():
 			has_capture_vision_frame, capture_vision_frame = camera_capture.read()
@@ -63,22 +96,46 @@ def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) 
 				break
 
 			if numpy.any(capture_vision_frame):
+				capture_vision_frame = resize_realtime_frame(capture_vision_frame)
+
+				if skip_no_face_frames and not get_many_faces([ capture_vision_frame ]):
+					progress.update()
+					yield capture_vision_frame
+					continue
+
 				progress.update()
-				yield process_stream_frame(capture_vision_frame)
+				yield process_stream_frame(capture_vision_frame, source_vision_frames, source_audio_frame, source_voice_frame, processor_modules, source_faces)
 
 
-def process_stream_frame(target_vision_frame : VisionFrame) -> VisionFrame:
-	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
-	source_audio_frame = create_empty_audio_frame()
-	source_voice_frame = create_empty_audio_frame()
+def resize_realtime_frame(vision_frame : VisionFrame) -> VisionFrame:
+	height, width = vision_frame.shape[:2]
+
+	if width > REALTIME_PROCESS_WIDTH:
+		realtime_height = int(height * REALTIME_PROCESS_WIDTH / width)
+		return cv2.resize(vision_frame, (REALTIME_PROCESS_WIDTH, realtime_height), interpolation = cv2.INTER_AREA)
+
+	return vision_frame
+
+
+def process_stream_frame(target_vision_frame : VisionFrame, source_vision_frames : Optional[List[VisionFrame]] = None, source_audio_frame : Optional[AudioFrame] = None, source_voice_frame : Optional[AudioFrame] = None, processor_modules : Optional[List[ModuleType]] = None, source_faces : Optional[Dict[str, Face]] = None) -> VisionFrame:
+	source_vision_frames = source_vision_frames or read_static_images(state_manager.get_item('source_paths'))
+	source_audio_frame = source_audio_frame if source_audio_frame is not None else create_empty_audio_frame()
+	source_voice_frame = source_voice_frame if source_voice_frame is not None else create_empty_audio_frame()
+	check_processor_modules = processor_modules is None
+	processor_modules = processor_modules or get_processors_modules(state_manager.get_item('processors'))
 	temp_vision_frame = target_vision_frame.copy()
 	temp_vision_mask = extract_vision_mask(temp_vision_frame)
 
-	for processor_module in get_processors_modules(state_manager.get_item('processors')):
-		logger.disable()
-		if processor_module.pre_process('stream'):
+	for processor_module in processor_modules:
+		if check_processor_modules:
+			logger.disable()
+			can_process = processor_module.pre_process('stream')
 			logger.enable()
-			temp_vision_frame, temp_vision_mask = processor_module.process_frame(
+		else:
+			can_process = True
+
+		if can_process:
+			process_inputs =\
 			{
 				'source_vision_frames': source_vision_frames,
 				'source_audio_frame': source_audio_frame,
@@ -86,8 +143,12 @@ def process_stream_frame(target_vision_frame : VisionFrame) -> VisionFrame:
 				'target_vision_frame': target_vision_frame,
 				'temp_vision_frame': temp_vision_frame,
 				'temp_vision_mask': temp_vision_mask
-			})
-		logger.enable()
+			}
+
+			if source_faces and processor_module.__name__ in source_faces:
+				process_inputs['source_face'] = source_faces.get(processor_module.__name__)
+
+			temp_vision_frame, temp_vision_mask = processor_module.process_frame(process_inputs)
 
 	return temp_vision_frame
 

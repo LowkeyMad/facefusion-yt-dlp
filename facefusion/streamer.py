@@ -107,6 +107,20 @@ def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) 
 				yield process_stream_frame(capture_vision_frame, source_vision_frames, source_audio_frame, source_voice_frame, processor_modules, source_faces)
 
 
+def process_raw_latest_capture(camera_capture : cv2.VideoCapture) -> Iterator[VisionFrame]:
+	with tqdm(desc = translator.get('streaming'), unit = 'frame', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
+		while camera_capture and camera_capture.isOpened():
+			has_capture_vision_frame, capture_vision_frame = camera_capture.read()
+
+			if not has_capture_vision_frame:
+				sleep(0.01)
+				continue
+
+			if numpy.any(capture_vision_frame):
+				progress.update()
+				yield capture_vision_frame
+
+
 def resize_realtime_frame(vision_frame : VisionFrame) -> VisionFrame:
 	height, width = vision_frame.shape[:2]
 

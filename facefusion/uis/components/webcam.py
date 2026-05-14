@@ -6,7 +6,7 @@ import gradio
 from facefusion import logger, state_manager, translator
 from facefusion.camera_manager import clear_camera_pool, get_local_camera_capture, get_remote_camera_capture
 from facefusion.filesystem import has_image
-from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture
+from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture, process_raw_latest_capture
 from facefusion.streams.ytdlp import resolve_stream_url
 from facefusion.types import Fps, VisionFrame, WebcamMode
 from facefusion.uis.core import get_ui_component
@@ -52,13 +52,14 @@ def listen() -> None:
 	SOURCE_FILE.change(update_source, inputs = SOURCE_FILE, outputs = SOURCE_FILE)
 	webcam_device_id_dropdown = get_ui_component('webcam_device_id_dropdown')
 	webcam_stream_url_textbox = get_ui_component('webcam_stream_url_textbox')
+	webcam_preview_stream_only_checkbox = get_ui_component('webcam_preview_stream_only_checkbox')
 	webcam_mode_radio = get_ui_component('webcam_mode_radio')
 	webcam_resolution_dropdown = get_ui_component('webcam_resolution_dropdown')
 	webcam_fps_slider = get_ui_component('webcam_fps_slider')
 
-	if webcam_device_id_dropdown and webcam_stream_url_textbox and webcam_mode_radio and webcam_resolution_dropdown and webcam_fps_slider:
+	if webcam_device_id_dropdown and webcam_stream_url_textbox and webcam_preview_stream_only_checkbox and webcam_mode_radio and webcam_resolution_dropdown and webcam_fps_slider:
 		WEBCAM_START_BUTTON.click(pre_start, outputs = [ SOURCE_FILE, WEBCAM_IMAGE, WEBCAM_START_BUTTON, WEBCAM_STOP_BUTTON ])
-		start_event = WEBCAM_START_BUTTON.click(start, inputs = [ webcam_device_id_dropdown, webcam_stream_url_textbox, webcam_mode_radio, webcam_resolution_dropdown, webcam_fps_slider ], outputs = WEBCAM_IMAGE)
+		start_event = WEBCAM_START_BUTTON.click(start, inputs = [ webcam_device_id_dropdown, webcam_stream_url_textbox, webcam_preview_stream_only_checkbox, webcam_mode_radio, webcam_resolution_dropdown, webcam_fps_slider ], outputs = WEBCAM_IMAGE)
 		start_event.then(pre_stop)
 		WEBCAM_STOP_BUTTON.click(stop, cancels = start_event, outputs = WEBCAM_IMAGE)
 		WEBCAM_STOP_BUTTON.click(pre_stop, outputs = [ SOURCE_FILE, WEBCAM_IMAGE, WEBCAM_START_BUTTON, WEBCAM_STOP_BUTTON ])
@@ -84,7 +85,7 @@ def pre_stop() -> Tuple[gradio.File, gradio.Image, gradio.Button, gradio.Button]
 	return gradio.File(visible = True), gradio.Image(visible = False), gradio.Button(visible = True), gradio.Button(visible = False)
 
 
-def start(webcam_device_id : int, webcam_stream_url : str, webcam_mode : WebcamMode, webcam_resolution : str, webcam_fps : Fps) -> Iterator[VisionFrame]:
+def start(webcam_device_id : int, webcam_stream_url : str, preview_stream_only : bool, webcam_mode : WebcamMode, webcam_resolution : str, webcam_fps : Fps) -> Iterator[VisionFrame]:
 	state_manager.init_item('face_selector_mode', 'one')
 	state_manager.sync_state()
 
@@ -112,7 +113,10 @@ def start(webcam_device_id : int, webcam_stream_url : str, webcam_mode : WebcamM
 		camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height)
 		camera_capture.set(cv2.CAP_PROP_FPS, webcam_fps)
 
-		capture_vision_frames = process_latest_capture(camera_capture, webcam_fps) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
+		if preview_stream_only:
+			capture_vision_frames = process_raw_latest_capture(camera_capture)
+		else:
+			capture_vision_frames = process_latest_capture(camera_capture, webcam_fps) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
 
 		for capture_vision_frame in capture_vision_frames:
 			capture_vision_frame = cv2.cvtColor(capture_vision_frame, cv2.COLOR_BGR2RGB)

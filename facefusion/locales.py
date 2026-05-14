@@ -269,6 +269,7 @@ LOCALES : Locales =\
 			'webcam_image': 'WEBCAM',
 			'webcam_device_id_dropdown': 'WEBCAM DEVICE ID',
 			'webcam_stream_url_textbox': 'WEBCAM STREAM URL',
+			'webcam_preview_stream_only_checkbox': 'PREVIEW STREAM ONLY',
 			'webcam_mode_radio': 'WEBCAM MODE',
 			'webcam_resolution_dropdown': 'WEBCAM RESOLUTION'
 		}

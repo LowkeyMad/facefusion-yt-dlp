@@ -4,7 +4,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from types import ModuleType
-from typing import Deque, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Deque, Dict, Iterator, List, Optional, Tuple
 
 import cv2
 import numpy
@@ -34,7 +34,7 @@ FACE_DEPENDENT_PROCESSORS =\
 }
 
 
-def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -> Iterator[VisionFrame]:
+def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, diagnostics : Optional[Any] = None) -> Iterator[VisionFrame]:
 	capture_deque : Deque[VisionFrame] = deque()
 
 	with tqdm(desc = translator.get('streaming'), unit = 'frame', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
@@ -46,6 +46,9 @@ def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -
 
 				if not has_capture_vision_frame:
 					break
+
+				if diagnostics:
+					diagnostics.observe_content_analyser()
 
 				if analyse_stream(capture_vision_frame, camera_fps):
 					camera_capture.release()
@@ -61,10 +64,12 @@ def multi_process_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps) -
 
 				while capture_deque:
 					progress.update()
+					if diagnostics:
+						diagnostics.observe_yield()
 					yield capture_deque.popleft()
 
 
-def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, realtime_mode : bool = True) -> Iterator[VisionFrame]:
+def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, realtime_mode : bool = True, diagnostics : Optional[Any] = None) -> Iterator[VisionFrame]:
 	source_vision_frames = read_static_images(state_manager.get_item('source_paths'))
 	source_audio_frame = create_empty_audio_frame()
 	source_voice_frame = create_empty_audio_frame()
@@ -88,10 +93,17 @@ def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, 
 			has_capture_vision_frame, capture_vision_frame = camera_capture.read()
 
 			if not has_capture_vision_frame:
+				if diagnostics:
+					diagnostics.observe_keepalive()
+					if diagnostics.should_finish():
+						diagnostics.finish()
 				sleep(0.01)
 				continue
 
 			process_vision_frame = resize_realtime_frame(capture_vision_frame) if realtime_mode else capture_vision_frame
+
+			if diagnostics:
+				diagnostics.observe_content_analyser()
 
 			if analyse_stream(process_vision_frame, camera_fps):
 				camera_capture.release()
@@ -100,25 +112,34 @@ def process_latest_capture(camera_capture : cv2.VideoCapture, camera_fps : Fps, 
 			if numpy.any(process_vision_frame):
 				if skip_no_face_frames and not get_many_faces([ process_vision_frame ]):
 					progress.update()
+					if diagnostics:
+						diagnostics.observe_yield()
 					yield process_vision_frame
 					continue
 
 				progress.update()
+				if diagnostics:
+					diagnostics.observe_yield()
 				yield process_stream_frame(process_vision_frame, source_vision_frames, source_audio_frame, source_voice_frame, processor_modules, source_faces)
 
 
-def process_raw_latest_capture(camera_capture : cv2.VideoCapture) -> Iterator[VisionFrame]:
+def process_raw_latest_capture(camera_capture : cv2.VideoCapture, diagnostics : Optional[Any] = None) -> Iterator[VisionFrame]:
 	with tqdm(desc = translator.get('streaming'), unit = 'frame', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
 		while camera_capture and camera_capture.isOpened():
 			has_capture_vision_frame, capture_vision_frame = camera_capture.read()
 
 			if not has_capture_vision_frame:
+				if diagnostics:
+					diagnostics.observe_keepalive()
+					if diagnostics.should_finish():
+						diagnostics.finish()
 				sleep(0.01)
 				continue
 
-			if numpy.any(capture_vision_frame):
-				progress.update()
-				yield capture_vision_frame
+			progress.update()
+			if diagnostics:
+				diagnostics.observe_yield()
+			yield capture_vision_frame
 
 
 def resize_realtime_frame(vision_frame : VisionFrame) -> VisionFrame:
@@ -203,4 +224,6 @@ def open_stream(stream_mode : StreamMode, stream_resolution : str, stream_fps : 
 		else:
 			logger.error(translator.get('stream_not_loaded').format(stream_mode = stream_mode), __name__)
 
-	return open_ffmpeg(commands)
+	stream = open_ffmpeg(commands)
+	setattr(stream, 'facefusion_command', ffmpeg_builder.run(commands))
+	return stream

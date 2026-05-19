@@ -68,10 +68,12 @@ def test_ffmpeg_capture_reads_newest_frame_from_background_reader() -> None:
 		has_new_frame, new_frame = capture.read()
 		capture.release()
 
-	popen.assert_called_once_with([ 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-fflags', 'nobuffer', '-flags', 'low_delay', '-re', '-i', 'https://stream.example.com/live.m3u8', '-an', '-vf', 'scale=2:1', '-pix_fmt', 'bgr24', '-f', 'rawvideo', 'pipe:1' ], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL)
+	popen.assert_called_once_with([ 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-fflags', 'nobuffer', '-flags', 'low_delay', '-i', 'https://stream.example.com/live.m3u8', '-an', '-vf', 'scale=2:1', '-pix_fmt', 'bgr24', '-f', 'rawvideo', 'pipe:1' ], stdout = subprocess.PIPE, stderr = subprocess.DEVNULL)
 	assert has_frame is True
 	assert frame is not None
 	assert frame[0, 0, 0] == 2
 	assert has_new_frame is False
 	assert new_frame is None
+	assert capture.get_read_gap_stats().get('reads') == 1
+	assert capture.get_read_gap_stats().get('misses') == 1
 	assert fake_process.is_terminated is True

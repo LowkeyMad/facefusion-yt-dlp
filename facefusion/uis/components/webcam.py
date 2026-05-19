@@ -8,6 +8,7 @@ import gradio
 from facefusion import logger, state_manager, translator
 from facefusion.camera_manager import clear_camera_pool, get_local_camera_capture, get_remote_camera_capture
 from facefusion.filesystem import create_directory, has_image, is_file
+from facefusion.realtime_diagnostics import RealtimeDiagnostics
 from facefusion.streamer import multi_process_capture, open_stream, process_latest_capture, process_raw_latest_capture, restrict_realtime_resolution
 from facefusion.streams.ytdlp import resolve_stream_url
 from facefusion.types import Fps, VisionFrame, WebcamMode
@@ -113,35 +114,58 @@ def start(webcam_device_id : int, webcam_stream_url : str, youtube_cookies_file 
 
 	if camera_capture and camera_capture.isOpened():
 		stream = None
+		diagnostics = RealtimeDiagnostics()
+		diagnostics.attach_capture(camera_capture)
+		active_processors = state_manager.get_item('processors') or []
+		output_width, output_height = webcam_width, webcam_height
+
+		if webcam_mode == 'inline' and webcam_stream_url and realtime_mode and not preview_stream_only and not active_processors:
+			output_width, output_height = capture_width, capture_height
 
 		if webcam_mode in [ 'udp', 'v4l2' ]:
 			stream = open_stream(webcam_mode, webcam_resolution, webcam_fps) #type:ignore[arg-type]
+			diagnostics.attach_stream(stream)
 
 		camera_capture.set(cv2.CAP_PROP_FRAME_WIDTH, webcam_width)
 		camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height)
 		camera_capture.set(cv2.CAP_PROP_FPS, webcam_fps)
 
-		if preview_stream_only or not state_manager.get_item('processors'):
-			capture_vision_frames = process_raw_latest_capture(camera_capture)
+		if preview_stream_only or not active_processors:
+			capture_vision_frames = process_raw_latest_capture(camera_capture, diagnostics)
 		else:
-			capture_vision_frames = process_latest_capture(camera_capture, webcam_fps, realtime_mode) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps)
+			capture_vision_frames = process_latest_capture(camera_capture, webcam_fps, realtime_mode, diagnostics) if webcam_stream_url else multi_process_capture(camera_capture, webcam_fps, diagnostics)
 
-		for capture_vision_frame in capture_vision_frames:
-			capture_vision_frame = cv2.cvtColor(capture_vision_frame, cv2.COLOR_BGR2RGB)
-			capture_vision_frame = fit_cover_frame(capture_vision_frame, (webcam_width, webcam_height))
+		try:
+			for capture_vision_frame in capture_vision_frames:
+				capture_vision_frame = prepare_webcam_frame(capture_vision_frame, output_width, output_height)
 
-			if webcam_mode == 'inline':
-				yield capture_vision_frame
-			if webcam_mode in [ 'udp', 'v4l2' ]:
-				try:
-					stream.stdin.write(capture_vision_frame.tobytes())
-				except Exception:
-					pass
+				if diagnostics.should_finish():
+					diagnostics.finish()
+
+				if webcam_mode == 'inline':
+					yield capture_vision_frame
+				if webcam_mode in [ 'udp', 'v4l2' ]:
+					try:
+						stream.stdin.write(capture_vision_frame.tobytes())
+					except Exception:
+						pass
+		finally:
+			diagnostics.finish()
 
 
 def stop() -> gradio.Image:
 	clear_camera_pool()
 	return gradio.Image(value = None)
+
+
+def prepare_webcam_frame(capture_vision_frame : VisionFrame, output_width : int, output_height : int) -> VisionFrame:
+	capture_vision_frame = cv2.cvtColor(capture_vision_frame, cv2.COLOR_BGR2RGB)
+	height, width = capture_vision_frame.shape[:2]
+
+	if width == output_width and height == output_height:
+		return capture_vision_frame
+
+	return fit_cover_frame(capture_vision_frame, (output_width, output_height))
 
 
 def prepare_youtube_cookies_path(youtube_cookies_file : File) -> Optional[str]:

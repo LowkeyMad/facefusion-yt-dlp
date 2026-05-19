@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Tuple
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import numpy
 
@@ -87,7 +87,7 @@ def test_start_remote_realtime_mode_uses_restricted_capture_size() -> None:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, True, 'inline', '1920x1080', 30))
 
 	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360)
-	process_latest_capture.assert_called_once_with(camera_capture, 30, True)
+	process_latest_capture.assert_called_once_with(camera_capture, 30, True, ANY)
 	assert capture_vision_frame.shape == (1080, 1920, 3)
 
 
@@ -98,7 +98,7 @@ def test_start_remote_realtime_mode_disabled_uses_selected_capture_size() -> Non
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, False, 'inline', '1920x1080', 30))
 
 	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080)
-	process_latest_capture.assert_called_once_with(camera_capture, 30, False)
+	process_latest_capture.assert_called_once_with(camera_capture, 30, False, ANY)
 	assert capture_vision_frame.shape == (1080, 1920, 3)
 
 
@@ -109,9 +109,9 @@ def test_start_remote_without_processors_uses_raw_capture() -> None:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, True, 'inline', '1920x1080', 30))
 
 	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360)
-	process_raw_latest_capture.assert_called_once_with(camera_capture)
+	process_raw_latest_capture.assert_called_once_with(camera_capture, ANY)
 	process_latest_capture.assert_not_called()
-	assert capture_vision_frame.shape == (1080, 1920, 3)
+	assert capture_vision_frame.shape == (360, 640, 3)
 
 
 def test_start_remote_preview_stream_only_uses_selected_capture_size() -> None:
@@ -121,7 +121,7 @@ def test_start_remote_preview_stream_only_uses_selected_capture_size() -> None:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, True, True, 'inline', '1920x1080', 30))
 
 	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080)
-	process_raw_latest_capture.assert_called_once_with(camera_capture)
+	process_raw_latest_capture.assert_called_once_with(camera_capture, ANY)
 	process_latest_capture.assert_not_called()
 	assert capture_vision_frame.shape == (1080, 1920, 3)
 
@@ -149,6 +149,6 @@ def test_start_local_webcam_uses_existing_local_capture_path() -> None:
 
 	get_local_camera_capture.assert_called_once_with(0)
 	get_remote_camera_capture.assert_not_called()
-	multi_process_capture.assert_called_once_with(camera_capture, 30)
+	multi_process_capture.assert_called_once_with(camera_capture, 30, ANY)
 	process_latest_capture.assert_not_called()
 	assert capture_vision_frame.shape == (1080, 1920, 3)

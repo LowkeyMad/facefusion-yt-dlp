@@ -10,6 +10,8 @@ from facefusion.uis.core import register_ui_component
 
 WEBCAM_DEVICE_ID_DROPDOWN : Optional[gradio.Dropdown] = None
 WEBCAM_STREAM_URL_TEXTBOX : Optional[gradio.Textbox] = None
+WEBCAM_STREAM_QUALITY_DROPDOWN : Optional[gradio.Dropdown] = None
+WEBCAM_STREAM_DELAY_SLIDER : Optional[gradio.Slider] = None
 WEBCAM_YOUTUBE_COOKIES_FILE : Optional[gradio.File] = None
 WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX : Optional[gradio.Checkbox] = None
 WEBCAM_REALTIME_MODE_CHECKBOX : Optional[gradio.Checkbox] = None
@@ -21,6 +23,8 @@ WEBCAM_FPS_SLIDER : Optional[gradio.Slider] = None
 def render() -> None:
 	global WEBCAM_DEVICE_ID_DROPDOWN
 	global WEBCAM_STREAM_URL_TEXTBOX
+	global WEBCAM_STREAM_QUALITY_DROPDOWN
+	global WEBCAM_STREAM_DELAY_SLIDER
 	global WEBCAM_YOUTUBE_COOKIES_FILE
 	global WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX
 	global WEBCAM_REALTIME_MODE_CHECKBOX
@@ -36,6 +40,18 @@ def render() -> None:
 	)
 	WEBCAM_STREAM_URL_TEXTBOX = gradio.Textbox(
 		label = translator.get('uis.webcam_stream_url_textbox')
+	)
+	WEBCAM_STREAM_QUALITY_DROPDOWN = gradio.Dropdown(
+		label = translator.get('uis.webcam_stream_quality_dropdown'),
+		choices = uis_choices.webcam_stream_qualities,
+		value = uis_choices.webcam_stream_qualities[0]
+	)
+	WEBCAM_STREAM_DELAY_SLIDER = gradio.Slider(
+		label = translator.get('uis.webcam_stream_delay_slider'),
+		value = 0.0,
+		step = 0.5,
+		minimum = 0.0,
+		maximum = 30.0
 	)
 	WEBCAM_YOUTUBE_COOKIES_FILE = gradio.File(
 		label = translator.get('uis.webcam_youtube_cookies_file'),
@@ -68,6 +84,8 @@ def render() -> None:
 	)
 	register_ui_component('webcam_device_id_dropdown', WEBCAM_DEVICE_ID_DROPDOWN)
 	register_ui_component('webcam_stream_url_textbox', WEBCAM_STREAM_URL_TEXTBOX)
+	register_ui_component('webcam_stream_quality_dropdown', WEBCAM_STREAM_QUALITY_DROPDOWN)
+	register_ui_component('webcam_stream_delay_slider', WEBCAM_STREAM_DELAY_SLIDER)
 	register_ui_component('webcam_youtube_cookies_file', WEBCAM_YOUTUBE_COOKIES_FILE)
 	register_ui_component('webcam_preview_stream_only_checkbox', WEBCAM_PREVIEW_STREAM_ONLY_CHECKBOX)
 	register_ui_component('webcam_realtime_mode_checkbox', WEBCAM_REALTIME_MODE_CHECKBOX)

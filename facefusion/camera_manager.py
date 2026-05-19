@@ -23,12 +23,12 @@ def get_local_camera_capture(camera_id : int) -> cv2.VideoCapture:
 	return CAMERA_POOL_SET.get('capture').get(camera_key)
 
 
-def get_remote_camera_capture(camera_url : str, width : int, height : int) -> FFmpegCapture:
-	camera_key = camera_url + '@' + str(width) + 'x' + str(height)
+def get_remote_camera_capture(camera_url : str, width : int, height : int, restore_default_buffering : bool = False, stream_fps : float = 30.0, stream_delay : float = 0.0) -> FFmpegCapture:
+	camera_key = camera_url + '@' + str(width) + 'x' + str(height) + '@' + str(restore_default_buffering) + '@' + str(stream_fps) + '@' + str(stream_delay)
 
 	if camera_key not in CAMERA_POOL_SET.get('capture'):
 		try:
-			camera_capture = FFmpegCapture(camera_url, width, height)
+			camera_capture = FFmpegCapture(camera_url, width, height, restore_default_buffering, stream_fps, stream_delay)
 		except OSError:
 			return None #type:ignore[return-value]
 

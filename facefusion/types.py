@@ -161,6 +161,7 @@ BenchmarkCycleSet = TypedDict('BenchmarkCycleSet',
 })
 
 WebcamMode = Literal['inline', 'udp', 'v4l2']
+WebcamStreamQuality = Literal['auto', '1080p', '720p', '480p', '360p']
 StreamMode = Literal['udp', 'v4l2']
 
 ModelOptions : TypeAlias = Dict[str, Any]
@@ -399,4 +400,3 @@ State = TypedDict('State',
 })
 ApplyStateItem : TypeAlias = Callable[[Any, Any], None]
 StateSet : TypeAlias = Dict[AppContext, State]
-

@@ -74,19 +74,27 @@ def test_webcam_realtime_mode_option_defaults_enabled() -> None:
 		webcam_options.render()
 
 	realtime_mode_checkbox = registered_components.get('webcam_realtime_mode_checkbox')
+	stream_quality_dropdown = registered_components.get('webcam_stream_quality_dropdown')
+	stream_delay_slider = registered_components.get('webcam_stream_delay_slider')
 
 	assert realtime_mode_checkbox is not None
 	assert realtime_mode_checkbox.label == 'REALTIME MODE'
 	assert realtime_mode_checkbox.value is True
+	assert stream_quality_dropdown is not None
+	assert stream_quality_dropdown.label == 'YOUTUBE STREAM QUALITY'
+	assert stream_quality_dropdown.value == 'auto'
+	assert stream_delay_slider is not None
+	assert stream_delay_slider.label == 'WEBCAM STREAM DELAY'
+	assert stream_delay_slider.value == 0.0
 
 
 def test_start_remote_realtime_mode_uses_restricted_capture_size() -> None:
 	camera_capture = FakeCameraCapture()
 
-	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = [ 'face_swapper' ]), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_url', return_value = 'https://stream.example.com/live.m3u8'), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_latest_capture', return_value = iter([ create_vision_frame(640, 360) ])) as process_latest_capture:
+	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = [ 'face_swapper' ]), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_info', return_value = { 'url': 'https://stream.example.com/live.m3u8' }), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_latest_capture', return_value = iter([ create_vision_frame(640, 360) ])) as process_latest_capture:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, True, 'inline', '1920x1080', 30))
 
-	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360)
+	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360, True, 30, 0.0)
 	process_latest_capture.assert_called_once_with(camera_capture, 30, True, ANY)
 	assert capture_vision_frame.shape == (1080, 1920, 3)
 
@@ -94,10 +102,10 @@ def test_start_remote_realtime_mode_uses_restricted_capture_size() -> None:
 def test_start_remote_realtime_mode_disabled_uses_selected_capture_size() -> None:
 	camera_capture = FakeCameraCapture()
 
-	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = [ 'face_swapper' ]), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_url', return_value = 'https://stream.example.com/live.m3u8'), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_latest_capture', return_value = iter([ create_vision_frame(1920, 1080) ])) as process_latest_capture:
+	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = [ 'face_swapper' ]), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_info', return_value = { 'url': 'https://stream.example.com/live.m3u8' }), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_latest_capture', return_value = iter([ create_vision_frame(1920, 1080) ])) as process_latest_capture:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, False, 'inline', '1920x1080', 30))
 
-	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080)
+	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080, True, 30, 0.0)
 	process_latest_capture.assert_called_once_with(camera_capture, 30, False, ANY)
 	assert capture_vision_frame.shape == (1080, 1920, 3)
 
@@ -105,10 +113,10 @@ def test_start_remote_realtime_mode_disabled_uses_selected_capture_size() -> Non
 def test_start_remote_without_processors_uses_raw_capture() -> None:
 	camera_capture = FakeCameraCapture()
 
-	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = []), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_url', return_value = 'https://stream.example.com/live.m3u8'), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_raw_latest_capture', return_value = iter([ create_vision_frame(640, 360) ])) as process_raw_latest_capture, patch('facefusion.uis.components.webcam.process_latest_capture') as process_latest_capture:
+	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.state_manager.get_item', return_value = []), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_info', return_value = { 'url': 'https://stream.example.com/live.m3u8' }), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_raw_latest_capture', return_value = iter([ create_vision_frame(640, 360) ])) as process_raw_latest_capture, patch('facefusion.uis.components.webcam.process_latest_capture') as process_latest_capture:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, False, True, 'inline', '1920x1080', 30))
 
-	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360)
+	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 640, 360, True, 30, 0.0)
 	process_raw_latest_capture.assert_called_once_with(camera_capture, ANY)
 	process_latest_capture.assert_not_called()
 	assert capture_vision_frame.shape == (360, 640, 3)
@@ -117,10 +125,10 @@ def test_start_remote_without_processors_uses_raw_capture() -> None:
 def test_start_remote_preview_stream_only_uses_selected_capture_size() -> None:
 	camera_capture = FakeCameraCapture()
 
-	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_url', return_value = 'https://stream.example.com/live.m3u8'), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_raw_latest_capture', return_value = iter([ create_vision_frame(1920, 1080) ])) as process_raw_latest_capture, patch('facefusion.uis.components.webcam.process_latest_capture') as process_latest_capture:
+	with patch('facefusion.uis.components.webcam.state_manager.init_item'), patch('facefusion.uis.components.webcam.state_manager.sync_state'), patch('facefusion.uis.components.webcam.prepare_youtube_cookies_path', return_value = None), patch('facefusion.uis.components.webcam.resolve_stream_info', return_value = { 'url': 'https://stream.example.com/live.m3u8' }), patch('facefusion.uis.components.webcam.get_remote_camera_capture', return_value = camera_capture) as get_remote_camera_capture, patch('facefusion.uis.components.webcam.process_raw_latest_capture', return_value = iter([ create_vision_frame(1920, 1080) ])) as process_raw_latest_capture, patch('facefusion.uis.components.webcam.process_latest_capture') as process_latest_capture:
 		capture_vision_frame = next(webcam.start(0, 'https://www.youtube.com/watch?v=test', None, True, True, 'inline', '1920x1080', 30))
 
-	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080)
+	get_remote_camera_capture.assert_called_once_with('https://stream.example.com/live.m3u8', 1920, 1080, True, 30, 0.0)
 	process_raw_latest_capture.assert_called_once_with(camera_capture, ANY)
 	process_latest_capture.assert_not_called()
 	assert capture_vision_frame.shape == (1080, 1920, 3)

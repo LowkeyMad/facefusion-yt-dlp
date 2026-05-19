@@ -33,13 +33,24 @@ class RealtimeDiagnostics:
 		self.content_analyser_calls = 0
 		self.content_analyser_started_at : Optional[float] = None
 		self.capture : Optional[Any] = None
+		self.stream_quality : Optional[str] = None
+		self.stream_info : Dict[str, Any] = {}
+		self.ingest_diagnostics : Dict[str, Any] = {}
 
 	def attach_capture(self, camera_capture : Any) -> None:
 		self.capture = camera_capture
 		self._attach_process(camera_capture)
+		if hasattr(camera_capture, 'get_ingest_diagnostics'):
+			self.ingest_diagnostics = camera_capture.get_ingest_diagnostics()
 
 	def attach_stream(self, stream : Any) -> None:
 		self._attach_process(stream)
+
+	def set_stream_quality(self, stream_quality : str) -> None:
+		self.stream_quality = stream_quality
+
+	def set_stream_info(self, stream_info : Dict[str, Any]) -> None:
+		self.stream_info = stream_info
 
 	def observe_keepalive(self) -> None:
 		self.streamer_keepalives += 1
@@ -75,6 +86,8 @@ class RealtimeDiagnostics:
 			return
 
 		self.finished = True
+		if self.capture and hasattr(self.capture, 'get_ingest_diagnostics'):
+			self.ingest_diagnostics = self.capture.get_ingest_diagnostics()
 		self.sample_processes()
 		write_report(self.report_path, self.create_report())
 
@@ -90,6 +103,16 @@ class RealtimeDiagnostics:
 			'ONNX Runtime available providers: ' + str(onnxruntime.get_available_providers()),
 			'Active processors: ' + str(state_manager.get_item('processors')),
 			'Face swap enabled: ' + str('face_swapper' in (state_manager.get_item('processors') or [])),
+			'YouTube stream quality: ' + str(self.stream_quality or 'auto'),
+			'YouTube selected format: ' + format_stream_info(self.stream_info),
+			'FFmpeg decode mode: ' + str(self.ingest_diagnostics.get('decode_mode') or 'unknown'),
+			'FFmpeg buffering mode: ' + str(self.ingest_diagnostics.get('buffering') or 'unknown'),
+			'Webcam stream delay: ' + str(self.ingest_diagnostics.get('stream_delay')),
+			'Webcam stream buffer target frames: ' + str(self.ingest_diagnostics.get('buffer_target_frames')),
+			'Webcam stream buffer length: ' + str(self.ingest_diagnostics.get('buffer_length')),
+			'Webcam stream dropped frames: ' + str(self.ingest_diagnostics.get('dropped_frames')),
+			'Webcam stream underruns: ' + str(self.ingest_diagnostics.get('underruns')),
+			'FFmpeg h264_cuvid available: ' + str(self.ingest_diagnostics.get('h264_cuvid_available')),
 			'',
 			'FFmpeg commands:'
 		]
@@ -111,6 +134,9 @@ class RealtimeDiagnostics:
 			'',
 			'nvidia-smi pmon sample:',
 			indent_text(run_command([ 'nvidia-smi', 'pmon', '-c', '1' ])),
+			'',
+			'FFmpeg ingest command variants:',
+			indent_text(format_command_variants(self.ingest_diagnostics.get('command_variants') or {})),
 			'',
 			'FFmpegCapture read gap stats: ' + str(read_gap_stats),
 			'Streamer yield/keepalive stats: yields=' + str(self.streamer_yields) + ', keepalives=' + str(self.streamer_keepalives) + ', yield_rate=' + format_rate(self.streamer_yields / elapsed) + '/s',
@@ -232,6 +258,28 @@ def write_report(report_path : str, report : str) -> None:
 
 def indent_text(text : str) -> str:
 	return os.linesep.join('  ' + line for line in text.splitlines())
+
+
+def format_stream_info(stream_info : Dict[str, Any]) -> str:
+	if not stream_info:
+		return 'none'
+
+	return ', '.join(
+	[
+		'format_id=' + str(stream_info.get('format_id')),
+		'protocol=' + str(stream_info.get('protocol')),
+		'resolution=' + str(stream_info.get('resolution')),
+		'fps=' + str(stream_info.get('fps')),
+		'vcodec=' + str(stream_info.get('vcodec')),
+		'acodec=' + str(stream_info.get('acodec'))
+	])
+
+
+def format_command_variants(command_variants : Dict[str, List[str]]) -> str:
+	if not command_variants:
+		return 'none'
+
+	return os.linesep.join(variant_name + ': ' + join_command(command) for variant_name, command in command_variants.items())
 
 
 def join_command(command : List[str]) -> str:

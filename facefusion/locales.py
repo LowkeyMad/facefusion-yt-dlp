@@ -269,6 +269,8 @@ LOCALES : Locales =\
 			'webcam_image': 'WEBCAM',
 			'webcam_device_id_dropdown': 'WEBCAM DEVICE ID',
 			'webcam_stream_url_textbox': 'WEBCAM STREAM URL',
+			'webcam_stream_quality_dropdown': 'YOUTUBE STREAM QUALITY',
+			'webcam_stream_delay_slider': 'WEBCAM STREAM DELAY',
 			'webcam_youtube_cookies_file': 'UPLOAD YOUTUBE COOKIES',
 			'webcam_preview_stream_only_checkbox': 'PREVIEW STREAM ONLY',
 			'webcam_realtime_mode_checkbox': 'REALTIME MODE',
